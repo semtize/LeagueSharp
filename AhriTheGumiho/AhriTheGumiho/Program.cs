@@ -40,6 +40,10 @@ namespace AhriTheGumiho
 
         //Menu
         public static Menu menu;
+		
+		//Drawing
+		public static HpBarIndicator hpi = new HpBarIndicator();
+
 
         private static Obj_AI_Hero Player;
 
@@ -169,9 +173,9 @@ namespace AhriTheGumiho
             menu.SubMenu("Drawings")
                 .AddItem(new MenuItem("RRange", "R range").SetValue(new Circle(false, Color.FromArgb(100, 255, 0, 255))));
             menu.SubMenu("Drawings")
-                .AddItem(
-                    new MenuItem("cursor", "Draw R Dash Range").SetValue(new Circle(false,
-                        Color.FromArgb(100, 255, 0, 255))));
+                .AddItem(new MenuItem("cursor", "Draw R Dash Range").SetValue(new Circle(false, Color.FromArgb(100, 255, 0, 255))));
+			menu.SubMenu("Drawings")
+                .AddItem(new MenuItem("drawDamage", "Calculate damage to target").SetValue(true));
             menu.SubMenu("Drawings")
                 .AddItem(dmgAfterComboItem);
             menu.AddToMainMenu();
@@ -179,6 +183,7 @@ namespace AhriTheGumiho
             //Events
             Game.OnGameUpdate += Game_OnGameUpdate;
             Drawing.OnDraw += Drawing_OnDraw;
+			Drawing.OnEndScene += OnEndScene;
             Interrupter.OnPossibleToInterrupt += Interrupter_OnPosibleToInterrupt;
             AntiGapcloser.OnEnemyGapcloser += AntiGapcloser_OnEnemyGapcloser;
             Game.PrintChat(ChampionName + " Loaded! --- by xSalice");
@@ -696,6 +701,18 @@ namespace AhriTheGumiho
             return menu.Item("packet").GetValue<bool>();
         }
 
+		 private static void OnEndScene(EventArgs args)
+        {
+            if (Config.Item("drawDamage").GetValue<bool>())
+            {
+                foreach (var enemy in ObjectManager.Get<Obj_AI_Hero>().Where(ene => !ene.IsDead && ene.IsEnemy && ene.IsVisible))
+                {
+                    hpi.unit = enemy;
+                    hpi.drawDmg(GetComboDamage(enemy), Color.Yellow);
+                }
+            }
+        }
+		
         private static void Drawing_OnDraw(EventArgs args)
         {
             foreach (Spell spell in SpellList)
@@ -707,6 +724,44 @@ namespace AhriTheGumiho
 
             if (menu.Item("cursor").GetValue<Circle>().Active)
                 Utility.DrawCircle(Player.Position, 475, Color.Aquamarine);
+				
+			 try
+            {
+                if (Config.Item("drawDamage").GetValue<bool>())
+                {
+                    if (target != null && !target.IsDead && !myHero.IsDead)
+                    {
+                        var ts = target;
+                        var wts = Drawing.WorldToScreen(target.Position);
+                        Drawing.DrawText(wts[0] - 40, wts[1] + 40, Color.OrangeRed, "Total damage: " + GetComboDamage(target) + "!");
+                        if (GetComboDamage(target) >= ts.Health)
+                        {
+                            Drawing.DrawText(wts[0] - 40, wts[1] + 70, Color.OrangeRed, "Status: Killable");
+                        }
+                        else if (GetComboDamage(target) < ts.Health)
+                        {
+                            Drawing.DrawText(wts[0] - 40, wts[1] + 70, Color.OrangeRed, "Status: Needs harass!");
+                        }
+
+                    }
+                    foreach (var enemy in ObjectManager.Get<Obj_AI_Hero>().Where(ene => !ene.IsDead && ene.IsEnemy && ene.IsVisible))
+                    {
+                        hpi.unit = enemy;
+                        if (GetComboDamage(enemy) >= enemy.Health)
+                        {
+                            hpi.drawDmg(GetComboDamage(enemy), Color.Red);
+                        }
+                        else
+                        {
+                            hpi.drawDmg(GetComboDamage(enemy), Color.Yellow);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Game.PrintChat("Failed to draw HP bar damage! => " + ex);
+            }
         }
 
         public static void AntiGapcloser_OnEnemyGapcloser(ActiveGapcloser gapcloser)
@@ -727,6 +782,111 @@ namespace AhriTheGumiho
                     E.Cast(unit, packets());
             }
         }
+		
+		class HpBarIndicator
+		{
 
-    }
+			public static SharpDX.Direct3D9.Device dxDevice = Drawing.Direct3DDevice;
+			public static SharpDX.Direct3D9.Line dxLine;
+
+			public Obj_AI_Hero unit { get; set; }
+
+			public float width = 104;
+
+			public float hight = 9;
+
+
+			public HpBarIndicator()
+			{
+				dxLine = new Line(dxDevice) { Width = 9 };
+
+				Drawing.OnPreReset += DrawingOnOnPreReset;
+				Drawing.OnPostReset += DrawingOnOnPostReset;
+				AppDomain.CurrentDomain.DomainUnload += CurrentDomainOnDomainUnload;
+				AppDomain.CurrentDomain.ProcessExit += CurrentDomainOnDomainUnload;
+
+			}
+		}
+		
+		private static void CurrentDomainOnDomainUnload(object sender, EventArgs eventArgs)
+        {
+            dxLine.Dispose();
+        }
+
+        private static void DrawingOnOnPostReset(EventArgs args)
+        {
+            dxLine.OnResetDevice();
+        }
+
+        private static void DrawingOnOnPreReset(EventArgs args)
+        {
+            dxLine.OnLostDevice();
+        }
+		
+		  private Vector2 Offset
+        {
+            get
+            {
+                if (unit != null)
+                {
+                    return unit.IsAlly ? new Vector2(34, 9) : new Vector2(10, 20);
+                }
+
+                return new Vector2();
+            }
+        }
+
+        public Vector2 startPosition
+        {
+
+            get { return new Vector2(unit.HPBarPosition.X + Offset.X, unit.HPBarPosition.Y + Offset.Y); }
+        }
+
+
+        private float getHpProc(float dmg = 0)
+        {
+            float health = ((unit.Health - dmg) > 0) ? (unit.Health - dmg) : 0;
+            return (health / unit.MaxHealth);
+        }
+
+        private Vector2 getHpPosAfterDmg(float dmg)
+        {
+            float w = getHpProc(dmg) * width;
+            return new Vector2(startPosition.X + w, startPosition.Y);
+        }
+
+        public void drawDmg(float dmg, System.Drawing.Color color)
+        {
+            var hpPosNow = getHpPosAfterDmg(0);
+            var hpPosAfter = getHpPosAfterDmg(dmg);
+
+            fillHPBar(hpPosNow, hpPosAfter, color);
+            //fillHPBar((int)(hpPosNow.X - startPosition.X), (int)(hpPosAfter.X- startPosition.X), color);
+        }
+
+        private void fillHPBar(int to, int from, System.Drawing.Color color)
+        {
+            Vector2 sPos = startPosition;
+
+            for (int i = from; i < to; i++)
+            {
+                Drawing.DrawLine(sPos.X + i, sPos.Y, sPos.X + i, sPos.Y + 9, 1, color);
+            }
+        }
+
+        private void fillHPBar(Vector2 from, Vector2 to, System.Drawing.Color color)
+        {
+            dxLine.Begin();
+
+            dxLine.Draw(new[]
+                                    {
+                                        new Vector2((int)from.X, (int)from.Y + 4f),
+                                        new Vector2( (int)to.X, (int)to.Y + 4f)
+                                    }, new ColorBGRA(255, 255, 00, 90));
+            // Vector2 sPos = startPosition;
+            //Drawing.DrawLine((int)from.X, (int)from.Y + 9f, (int)to.X, (int)to.Y + 9f, 9f, color);
+
+            dxLine.End();
+        }
+	}
 }
