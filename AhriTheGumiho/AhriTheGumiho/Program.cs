@@ -4,8 +4,11 @@ using System.Linq;
 using LeagueSharp;
 using LeagueSharp.Common;
 using SharpDX;
+using SharpDX.Direct3D9;
 using Color = System.Drawing.Color;
 using LX_Orbwalker;
+using System.Globalization;
+using System.Threading;
 
 namespace AhriTheGumiho
 {
@@ -13,6 +16,8 @@ namespace AhriTheGumiho
     {
         public const string ChampionName = "Ahri";
 
+		private static Obj_AI_Hero target;
+        private static Obj_AI_Hero myHero;
         //Orbwalker instance
         public static Orbwalking.Orbwalker Orbwalker;
 
@@ -703,7 +708,7 @@ namespace AhriTheGumiho
 
 		 private static void OnEndScene(EventArgs args)
         {
-            if (Config.Item("drawDamage").GetValue<bool>())
+            if (menu.Item("drawDamage").GetValue<bool>())
             {
                 foreach (var enemy in ObjectManager.Get<Obj_AI_Hero>().Where(ene => !ene.IsDead && ene.IsEnemy && ene.IsVisible))
                 {
@@ -727,7 +732,7 @@ namespace AhriTheGumiho
 				
 			 try
             {
-                if (Config.Item("drawDamage").GetValue<bool>())
+                if (menu.Item("drawDamage").GetValue<bool>())
                 {
                     if (target != null && !target.IsDead && !myHero.IsDead)
                     {
@@ -783,6 +788,7 @@ namespace AhriTheGumiho
             }
         }
 		
+	}
 		class HpBarIndicator
 		{
 
@@ -806,7 +812,6 @@ namespace AhriTheGumiho
 				AppDomain.CurrentDomain.ProcessExit += CurrentDomainOnDomainUnload;
 
 			}
-		}
 		
 		private static void CurrentDomainOnDomainUnload(object sender, EventArgs eventArgs)
         {
@@ -888,5 +893,6 @@ namespace AhriTheGumiho
 
             dxLine.End();
         }
+		
+		}
 	}
-}
