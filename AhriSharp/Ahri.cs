@@ -315,7 +315,7 @@ namespace AhriSharp
             }
 			 try
             {
-                if (menu.Item("drawDamage").GetValue<bool>())
+                if (_menu.Item("drawDamage").GetValue<bool>())
                 {
                     if (target != null && !target.IsDead && !myHero.IsDead)
                     {
