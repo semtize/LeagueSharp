@@ -36,7 +36,7 @@ namespace AhriSharp
 		
 		private static void OnEndScene(EventArgs args)
         {
-            if (menu.Item("drawDamage").GetValue<bool>())
+            if (_menu.Item("drawDamage").GetValue<bool>())
             {
                 foreach (var enemy in ObjectManager.Get<Obj_AI_Hero>().Where(ene => !ene.IsDead && ene.IsEnemy && ene.IsVisible))
                 {
@@ -251,7 +251,7 @@ namespace AhriSharp
             return spellCombo;
         }
 
-        float GetComboDamage(Obj_AI_Base target)
+        static float GetComboDamage(Obj_AI_Base target)
         {
             double comboDamage = (float)ObjectManager.Player.GetComboDamage(target, GetSpellCombo());
 
