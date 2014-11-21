@@ -185,7 +185,7 @@ namespace Orianna
             }
 			try
             {
-                if (menu.Item("drawDamage").GetValue<bool>())
+                if (Config.Item("drawDamage").GetValue<bool>())
                 {
                     if (target != null && !target.IsDead && !myHero.IsDead)
                     {
@@ -298,7 +298,7 @@ namespace Orianna
 
 		private static void OnEndScene(EventArgs args)
         {
-            if (menu.Item("drawDamage").GetValue<bool>())
+            if (Config.Item("drawDamage").GetValue<bool>())
             {
                 foreach (var enemy in ObjectManager.Get<Obj_AI_Hero>().Where(ene => !ene.IsDead && ene.IsEnemy && ene.IsVisible))
                 {
